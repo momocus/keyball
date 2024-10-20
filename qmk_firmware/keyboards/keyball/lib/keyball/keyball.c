@@ -166,10 +166,33 @@ void pointing_device_driver_set_cpi(uint16_t cpi) {
     keyball_set_cpi(cpi);
 }
 
+const float SPEED_MULTIPLIER_TABLE_X[] = {1, 5, 30, 60};
+const float SPEED_MULTIPLIER_TABLE_Y[] = {0.2, 1, 1.5, 3};
+const uint8_t SPEED_MULTIPLIER_TABLE_SIZE = 4;
+
+float linear_interpolate(float x, const float *x_table, const float *y_table, uint8_t table_size) {
+    int8_t i = 0;
+    while (i < table_size - 1 && x > x_table[i]) {
+        i++;
+    }
+    if (i == 0) {
+        return y_table[0];
+    }
+    if (i == table_size - 1) {
+        return y_table[table_size - 1];
+    }
+    float x0 = x_table[i - 1];
+    float x1 = x_table[i];
+    float y0 = y_table[i - 1];
+    float y1 = y_table[i];
+    return (y0 + (y1 - y0) * (x - x0) / (x1 - x0));
+}
+
 __attribute__((weak)) void keyball_on_apply_motion_to_mouse_move(keyball_motion_t *m, report_mouse_t *r, bool is_left) {
 #if KEYBALL_MODEL == 61 || KEYBALL_MODEL == 39 || KEYBALL_MODEL == 147 || KEYBALL_MODEL == 44
-    r->x = clip2int8(m->y);
-    r->y = clip2int8(m->x);
+    // 44 only
+    r->x = clip2int8(linear_interpolate(m->y, SPEED_MULTIPLIER_TABLE_X, SPEED_MULTIPLIER_TABLE_Y, SPEED_MULTIPLIER_TABLE_SIZE));
+    r->y = clip2int8(linear_interpolate(m->x, SPEED_MULTIPLIER_TABLE_X, SPEED_MULTIPLIER_TABLE_Y, SPEED_MULTIPLIER_TABLE_SIZE));
     if (is_left) {
         r->x = -r->x;
         r->y = -r->y;
